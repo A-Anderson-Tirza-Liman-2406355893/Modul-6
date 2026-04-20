@@ -30,3 +30,28 @@ Metode ini mengeksekusi _iterator_ dan mengumpulkan semua _string_ yang dihasilk
 `println!("Request: {:#?}", http_request):`
 
 Perintah ini mencetak _vector_ yang telah dikumpulkan ke layar konsol. Sintaks `{:#?}` digunakan untuk mencetak hasil _debugging_ dengan format yang rapi (_pretty-printing_), sehingga daftar _header_ HTTP menjadi sangat mudah dibaca karena ditampilkan pada baris-baris yang terpisah.
+
+## Commit 2 Reflection Notes
+
+Pada commit ini, saya memodifikasi `handle_connection` agar tidak hanya membaca permintaan (_request_), tetapi juga mengirimkan balasan (_response_) berupa halaman HTML ke _browser_. Berikut adalah hal baru yang dipelajari dari penambahan kode tersebut:
+
+`let status_line = "HTTP/1.1 200 OK";`:
+
+Ini adalah baris status HTTP standar yang menandakan bahwa permintaan telah berhasil diproses oleh _server_. Versi HTTP yang digunakan adalah 1.1 dan kode status 200 berarti "OK".
+
+`fs::read_to_string("hello.html").unwrap();`:
+
+Fungsi dari modul `std::fs` (_file system_) ini digunakan untuk membaca seluruh isi _file_ `hello.html` dan mengubahnya menjadi tipe data `String`. Pemanggilan `unwrap()` akan menghentikan program (_panic_) jika file tersebut gagal ditemukan atau tidak bisa dibaca.
+
+`let length = contents.len();`:
+Untuk menghitung panjang _byte_ dari isi file HTML. Informasi ini dibutuhkan untuk header `Content-Length`.
+
+`format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");`:
+
+Makro `format!` merangkai teks-teks tadi menjadi satu balasan HTTP yang utuh dan sesuai standar (valid). Sesuai protokol HTTP, dibutuhkan `\r\n` (CRLF) untuk memisahkan baris status dengan_header_ `Content-Length`, dan wajib meletakkan dua baris kosong (`\r\n\r\n`) untuk memisahkan bagian _header_ HTTP dari bagian _body_ (isi konten HTML).
+
+`stream.write_all(response.as_bytes()).unwrap();`:
+Setelah balasan diformat dalam bentuk _string_, bentuk tersebut perlu diubah menjadi barisan _byte_ menggunakan .`as_bytes()`. Kemudian, `write_all` digunakan untuk mengirimkan seluruh _byte_ tersebut kembali ke _browser_ melalui _TCP stream_.
+
+Tangkapan Layar:
+![Commit 2 screen capture](/assets/images/commit2.png)
