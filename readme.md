@@ -55,3 +55,25 @@ Setelah balasan diformat dalam bentuk _string_, bentuk tersebut perlu diubah men
 
 Tangkapan Layar:
 ![Commit 2 screen capture](/assets/images/commit2.png)
+
+## Commit 3 Reflection Notes
+Pada commit ini, saya menambahkan logika untuk memvalidasi permintaan yang masuk dan memberikan respons yang berbeda (selektif) berdasarkan path yang diminta oleh _browser_.
+
+Cara Memisahkan Respons:
+
+Pengguna tidak lagi membaca seluruh _request_, tetapi hanya mengambil baris pertama saja menggunakan `buf_reader.lines().next().unwrap().unwrap()` yang disimpan dalam variabel `request_line`. Baris pertama ini berisi metode dan rute yang diminta, misalnya `GET / HTTP/1.1`.
+
+Telah digunakan blok `if-else` untuk mengecek string tersebut:
+
+- Jika peramban meminta root direktori (`/`), akan disiapkan baris status `HTTP/1.1 200 OK` dan menampilkan `hello.html`.
+
+- Jika peramban meminta rute lain (misalnya `http://127.0.0.1:7878/bad`), kode akan masuk ke blok `else`, kemudian menyiapkan baris status `HTTP/1.1 404 NOT FOUND` dan menampilkan halaman khusus yaitu `404.html`.
+
+Mengapa Refactoring Diperlukan:
+
+Saat menulis logika pembacaan _file_ dan penulisan respons secara langsung di dalam blok `if` dan `else`, terjadi melakukan duplikasi kode yang sangat banyak (menulis `fs::read_to_string`, `format!`, dan `stream.write_all` sebanyak dua kali).
+
+Oleh karena itu, dilakukan _refactoring_ untuk menerapkan prinsip **DRY (_Don't Repeat Yourself_)**. Alih-alih menulis ulang seluruh proses, blok `if-else` dibuat hanya untuk mengembalikan sebuah _tuple_ berisi data yang berbeda saja, yaitu `(status_line, filename)`. Setelah blok kondisional selesai mengevaluasi nilai mana yang harus dipakai, proses membaca _file_, memformat _header_ HTTP, dan mengirimkan barisan _byte_ (`stream.write_all`) hanya perlu ditulis satu kali saja di bagian paling bawah. Hal ini membuat kode menjadi lebih bersih, ringkas, dan mudah untuk dipelihara.
+
+Tangkapan Layar:
+![Commit 3 screen capture](/assets/images/commit3.png)
