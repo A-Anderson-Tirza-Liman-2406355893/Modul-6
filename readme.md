@@ -124,3 +124,11 @@ Berikut adalah cara kerja *ThreadPool* berdasarkan yang telah diimplementasikan:
     Ketika `pool.execute` dipanggil, ia akan menerima sebuah *closure* (fungsi anonim, dalam hal ini fungsi `handle_connection`). *Closure* tersebut dibungkus sebagai `Box<dyn FnOnce() + Send + 'static>` yang disebut sebagai `Job`. `Job` ini kemudian dikirim melalui *channel*. *Worker* yang sedang menganggur akan menerima `Job` ini, mengeksekusinya hingga selesai, lalu kembali bersiap menunggu pekerjaan berikutnya.
 
 Ketika dibuka `/sleep` dan kemudian dibuka `/` di *tab* lain, *tab* kedua akan langsung merender halaman tanpa perlu menunggu 10 detik, karena koneksi tersebut diproses oleh *Worker thread* yang berbeda.
+
+## Bonus Commit Reflection Notes
+
+Pada commit ini, saya mengganti fungsi `ThreadPool::new` dengan `ThreadPool::build`.
+
+Sebelumnya, fungsi `new` menggunakan `assert!(size > 0)`, yang berarti jika nilai ukuran 0 diberikan, program akan langsung memicu `panic!` dan _crash_ (berhenti mendadak). Dalam lingkungan server yang tangguh (robust), harus  dihindari _panic_ tak terduga yang dapat menyebabkan seluruh aplikasi _crash_ hanya karena kesalahan konfigurasi.
+
+Dengan menggantinya menjadi `build`, _signature_ fungsi tersebut kini mengembalikan tipe `Result<ThreadPool, PoolCreationError>`. Jika ukurannya 0, fungsi ini akan mengembalikan `Err` alih-alih memicu _panic_. Hal ini mengembalikan kontrol ke pemanggilnya (_caller_) di `main.rs`, sehingga memungkinkan untuk _error handling_ secara elegan (misalnya, dengan mencetak pesan error yang rapi menggunakan `unwrap_or_else` dan keluar dari program dengan kode status yang tepat). Perubahan ini membuat API `ThreadPool` menjadi jauh lebih aman dan lebih idiomatik (sesuai praktik terbaik) terhadap filosofi penanganan error di Rust.

@@ -3,6 +3,7 @@ use std::{
     fs,
     io::{prelude::*, BufReader},
     net::{TcpListener, TcpStream},
+    process, // Tambahkan modul process untuk exit
     thread,
     time::Duration,
 };
@@ -10,13 +11,14 @@ use std::{
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
     
-    // Membuat ThreadPool dengan batasan 4 worker thread
-    let pool = ThreadPool::new(4);
+    let pool = ThreadPool::build(4).unwrap_or_else(|err| {
+        eprintln!("Problem creating thread pool: {}", err);
+        process::exit(1);
+    });
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
 
-        // Melemparkan tugas handle_connection ke dalam ThreadPool
         pool.execute(|| {
             handle_connection(stream);
         });
