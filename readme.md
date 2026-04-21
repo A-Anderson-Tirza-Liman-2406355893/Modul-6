@@ -104,26 +104,23 @@ Simulasi ini berhasil menyingkap kelemahan fatal dari *web server single-thread*
 
 Pada *commit* ini, saya menyelesaikan masalah *bottleneck* dari *single-threaded server* dengan menerapkan arsitektur *multi-threaded* menggunakan *ThreadPool*.  
 
-Berikut adalah cara kerja ThreadPool (yang saya pahami) berdasarkan implementasi yang telah dilakukan:
+Berikut adalah cara kerja *ThreadPool* berdasarkan yang telah diimplementasikan:
 
-* **Mengapa Menggunakan ThreadPool?**:
+* **Alasan Menggunakan ThreadPool?**:
 
-    Daripada membuat *thread* baru tanpa batas setiap kali ada koneksi masuk (`thread::spawn`), jumlah *thread* yang aktif dibatasi (misalnya 4 *thread*). Hal ini penting untuk mencegah *server* kehabisan sumber daya memori dan CPU jika diserang oleh ribuan permintaan secara bersamaan (misalnya pada serangan *Denial of Service* / DoS).
+    Daripada membuat *thread* baru tanpa batas setiap kali ada koneksi masuk (`thread::spawn`), jumlah *thread* yang aktif baiknya dibatasi (misalnya 4 *thread*). Hal ini penting untuk mencegah *server* kehabisan sumber daya memori dan CPU jika diserang oleh ribuan permintaan secara bersamaan (misalnya pada serangan *Denial of Service* / DoS).
 
 * **Penggunaan Channel (`mpsc`)**:
-
-    `ThreadPool` beroperasi dengan pola Pengirim-Penerima (*Sender-Receiver*). Digunakan *channel* `mpsc` (*Multiple Producer, Single Consumer*). `ThreadPool` bertindak sebagai *sender* (memasukkan tugas/pekerjaan baru ke dalam antrean), sedangkan para *Worker* bertindak sebagai *receiver* (mengambil tugas tersebut).
+    
+    `ThreadPool` beroperasi dengan pola Pengirim-Penerima (_Sender-Receiver_). Digunakan *channel* `mpsc` (_Multiple Producer, Single Consumer_). `ThreadPool` bertindak sebagai *sender* (memasukkan tugas/pekerjaan baru ke dalam antrean), sedangkan para *Worker* bertindak sebagai *receiver* (mengambil tugas tersebut).
 
 * **Keamanan Konkurensi dengan `Arc<Mutex<T>>`**
-    Di dalam Rust, *Receiver* pada *channel* secara standar tidak bisa dibagi ke banyak *thread* sekaligus. Untuk mengakalinya, thread dibungkus dalam tipe pintar `Arc<Mutex<mpsc::Receiver<Job>>>`.
-    * **`Arc` (*Atomic Reference Counted*):** 
-    
-    Memungkinkan banyak *Worker* memiliki kepemilikan (*ownership*) yang sah atas *receiver* yang sama.
-    * **`Mutex` (*Mutual Exclusion*):** 
-    
-    Memastikan bahwa pada satu waktu, hanya ada satu *Worker* yang diizinkan untuk mengunci (*lock*) *receiver* dan mengambil pekerjaan dari antrean, sehingga mencegah *data race*.
+    Di dalam Rust, *Receiver* pada *channel* secara standar tidak bisa dibagi ke banyak *thread* sekaligus. Untuk mengakalinya, _thread_ dibungkus dalam tipe pintar `Arc<Mutex<mpsc::Receiver<Job>>>`.
+    * **`Arc` (Atomic Reference Counted):** Memungkinkan banyak *Worker* memiliki kepemilikan (*ownership*) yang sah atas *receiver* yang sama.
+    * **`Mutex` (Mutual Exclusion):** Memastikan bahwa pada satu waktu, hanya ada satu *Worker* yang diizinkan untuk mengunci (*lock*) *receiver* dan mengambil pekerjaan dari antrean, sehingga mencegah *data race*.
 
-* **Mekanisme Eksekusi Tugas (`execute`)**
+* **Mekanisme Eksekusi Tugas (`execute`)**:
+
     Ketika `pool.execute` dipanggil, ia akan menerima sebuah *closure* (fungsi anonim, dalam hal ini fungsi `handle_connection`). *Closure* tersebut dibungkus sebagai `Box<dyn FnOnce() + Send + 'static>` yang disebut sebagai `Job`. `Job` ini kemudian dikirim melalui *channel*. *Worker* yang sedang menganggur akan menerima `Job` ini, mengeksekusinya hingga selesai, lalu kembali bersiap menunggu pekerjaan berikutnya.
 
-Kini, jika dibuka `/sleep` dan kemudian dibuka `/` di *tab* lain, *tab* kedua akan langsung merender halaman tanpa perlu menunggu 10 detik, karena koneksi tersebut diproses oleh *Worker thread* yang berbeda.
+Ketika dibuka `/sleep` dan kemudian dibuka `/` di *tab* lain, *tab* kedua akan langsung merender halaman tanpa perlu menunggu 10 detik, karena koneksi tersebut diproses oleh *Worker thread* yang berbeda.

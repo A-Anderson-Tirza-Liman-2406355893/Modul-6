@@ -1,4 +1,4 @@
-use hello::ThreadPool; // Pastikan 'hello' sesuai dengan nama package di Cargo.toml kamu
+use Modul6::ThreadPool;
 use std::{
     fs,
     io::{prelude::*, BufReader},
@@ -9,12 +9,14 @@ use std::{
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:7878").unwrap();
-
+    
+    // Membuat ThreadPool dengan batasan 4 worker thread
     let pool = ThreadPool::new(4);
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
 
+        // Melemparkan tugas handle_connection ke dalam ThreadPool
         pool.execute(|| {
             handle_connection(stream);
         });
