@@ -77,3 +77,25 @@ Oleh karena itu, dilakukan _refactoring_ untuk menerapkan prinsip **DRY (_Don't 
 
 Tangkapan Layar:
 ![Commit 3 screen capture](/assets/images/commit3.png)
+
+## Commit 4 Reflection Notes
+
+Pada *commit* ini, saya melakukan *refactoring* dengan mengubah struktur kendali dari `if-else` menjadi `match` agar penambahan rute baru menjadi lebih rapi dan berskala. Selain itu, telah ditambahkan sebuah rute pengujian, yaitu `/sleep`, untuk menyimulasikan respons server yang lambat (*slow request*).
+
+Menurut hasil refleksi saya, berikut adalah pembedahan teknis dari hasil simulasi yang telah dilakukan:
+
+* **Cara Kerja Simulasi `/sleep`**:
+
+    Ketika peramban (*browser*) mengirimkan permintaan ke rute `/sleep`, program akan mengeksekusi `thread::sleep(Duration::from_secs(10));`. Perintah ini secara harfiah akan menghentikan sementara (menidurkan) *thread* yang sedang berjalan selama 10 detik penuh sebelum akhirnya mengembalikan respons berupa halaman `hello.html`.
+
+* **Masalah pada Server *Single-Thread***:
+
+    Karena arsitektur server saat ini masih *single-threaded* (berjalan pada satu utas tunggal), ia hanya sanggup memproses satu koneksi dalam satu waktu secara berurutan (*sequential*). Di dalam fungsi `main`, *loop* `for` akan tertahan dan harus menunggu eksekusi `handle_connection` selesai sepenuhnya sebelum ia bisa menerima `stream` (koneksi) dari klien berikutnya.
+
+* **Dampak (*Bottleneck*) yang Terjadi**:
+
+    Jika dibuka `/sleep` di satu *tab browser*, *thread* utama server akan langsung terkunci selama 10 detik. Jika di saat yang bersamaan apabila membuka rute normal (`/`) di *tab* lain, *tab* kedua tersebut tidak akan memuat tampilan apapun meskipun rutenya sangat ringan. *Tab* kedua dipaksa masuk ke dalam antrean dan menggantung (*pending*) sampai proses penahanan 10 detik dari koneksi pertama benar-benar selesai.
+
+
+
+Simulasi ini berhasil menyingkap kelemahan fatal dari *web server single-thread*. Satu interaksi yang lambat dapat memblokir seluruh pengguna lain di dalam sistem. Untuk lingkungan dunia nyata (*production*), perilaku ini sangat tidak dapat diterima. Solusi untuk masalah ini adalah dengan beralih ke arsitektur komputasi konkuren (*concurrent*), seperti menerapkan implementasi *multi-threading* menggunakan *Thread Pool*, sehingga server dapat menangani puluhan hingga ribuan permintaan secara bersamaan.
